@@ -28,6 +28,11 @@ var (
 	CaseFold opt = func(w *Wildmatch) {
 		w.caseFold = true
 	}
+
+	// SystemCase either folds or does not fold filepaths and patterns,
+	// according to whether or not the operating system on which Wildmatch
+	// runs supports case sensitive files or not.
+	SystemCase opt
 )
 
 // Wildmatch implements pattern matching against filepaths using the format
