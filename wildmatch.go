@@ -485,10 +485,8 @@ func (c *component) Consume(path []string, isDir bool) ([]string, bool) {
 		}
 	}
 
-	// If the pattern application above did not exhaust the entire path,
-	// return a failure.
 	if len(head) > 0 {
-		return path, false
+		return append([]string{head}, path[1:]...), true
 	}
 
 	if len(path) == 1 {
