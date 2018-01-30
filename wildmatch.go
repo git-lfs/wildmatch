@@ -11,6 +11,17 @@ import (
 // opt is an option type for configuring a new Wildmatch instance.
 type opt func(w *Wildmatch)
 
+// MatchPathname allows for matches "anywhere" in the pathname, by a de-facto
+// replacement of the "*" operator into "**/".
+//
+// For instance, without MatchPathname, the pattern "*.txt" will match "x.txt",
+// but not "y/z.txt". With MatchPathname enabled, the above pattern will match
+// both of the aforementioned pathnames (i.e., the pattern will behave
+// equivalently to **/*.txt").
+var MatchPathname opt = func(w *Wildmatch) {
+	w.matchPathname = true
+}
+
 // Wildmatch implements pattern matching against filepaths using the format
 // described in the package documentation.
 //
@@ -20,6 +31,10 @@ type Wildmatch struct {
 	ts []token
 	// p is the raw pattern used to derive the token set.
 	p string
+
+	// matchPathname determines whether or not the "*" may traverse
+	// directories.
+	matchPathname bool
 }
 
 // NewWildmatch constructs a new Wildmatch instance which matches filepaths
@@ -36,21 +51,24 @@ func NewWildmatch(p string, opts ...opt) *Wildmatch {
 		opt(w)
 	}
 
-	w.ts = parseTokens(strings.Split(w.p, string(filepath.Separator)))
+	w.ts = parseTokens(
+		strings.Split(w.p, string(filepath.Separator)),
+		w.matchPathname,
+	)
 
 	return w
 }
 
 // parseTokens parses a separated list of patterns into a sequence of
 // representative Tokens that will compose the pattern when applied in sequence.
-func parseTokens(dirs []string) []token {
+func parseTokens(dirs []string, matchPathname bool) []token {
 	if len(dirs) == 0 {
 		return make([]token, 0)
 	}
 
 	switch dirs[0] {
 	case "**":
-		rest := parseTokens(dirs[1:])
+		rest := parseTokens(dirs[1:], matchPathname)
 		if len(rest) == 0 {
 			// If there are no remaining tokens, return a lone
 			// doubleStar token.
@@ -66,12 +84,39 @@ func parseTokens(dirs []string) []token {
 			Until: rest[0],
 		}}, rest[1:]...)
 	default:
+		if i := strings.Index(dirs[0], "*"); i > -1 && matchPathname {
+			// If there exists a single "*" somewhere in the
+			// pattern, replace it with a "**" if matchPathname is
+			// set.
+			//
+			// Split the token <first>*<rest> into [<first>, "*",
+			// <rest>], removing empty parts, and prepending it to
+			// the remainder of dirs.
+			//
+			// Reprocess after splitting.
+			return parseTokens(append(nonEmpty([]string{
+				dirs[0][:i],
+				"**",
+				dirs[0][i+1:],
+			}), dirs[1:]...), matchPathname)
+		}
+
 		// Ordinarily, simply return the appropriate component, and
 		// continue on.
 		return append([]token{
 			&component{parseComponent(dirs[0])},
-		}, parseTokens(dirs[1:])...)
+		}, parseTokens(dirs[1:], matchPathname)...)
 	}
+}
+
+// nonEmpty returns the non-empty strings in "all".
+func nonEmpty(all []string) (ne []string) {
+	for _, x := range all {
+		if len(x) > 0 {
+			ne = append(ne, x)
+		}
+	}
+	return ne
 }
 
 // HasPrefix returns true if and only if the pattern matched by the receiving
