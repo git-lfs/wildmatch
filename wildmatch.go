@@ -11,16 +11,18 @@ import (
 // opt is an option type for configuring a new Wildmatch instance.
 type opt func(w *Wildmatch)
 
-// MatchPathname allows for matches "anywhere" in the pathname, by a de-facto
-// replacement of the "*" operator into "**/".
-//
-// For instance, without MatchPathname, the pattern "*.txt" will match "x.txt",
-// but not "y/z.txt". With MatchPathname enabled, the above pattern will match
-// both of the aforementioned pathnames (i.e., the pattern will behave
-// equivalently to **/*.txt").
-var MatchPathname opt = func(w *Wildmatch) {
-	w.matchPathname = true
-}
+var (
+	// MatchPathname allows for matches "anywhere" in the pathname, by a
+	// de-facto replacement of the "*" operator into "**/".
+	//
+	// For instance, without MatchPathname, the pattern "*.txt" will match
+	// "x.txt", but not "y/z.txt". With MatchPathname enabled, the above
+	// pattern will match both of the aforementioned pathnames (i.e., the
+	// pattern will behave equivalently to **/*.txt").
+	MatchPathname opt = func(w *Wildmatch) {
+		w.matchPathname = true
+	}
+)
 
 // Wildmatch implements pattern matching against filepaths using the format
 // described in the package documentation.
