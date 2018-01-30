@@ -22,6 +22,12 @@ var (
 	MatchPathname opt = func(w *Wildmatch) {
 		w.matchPathname = true
 	}
+
+	// CaseFold allows the receiving Wildmatch to match paths with
+	// different case structuring as in the pattern.
+	CaseFold opt = func(w *Wildmatch) {
+		w.caseFold = true
+	}
 )
 
 // Wildmatch implements pattern matching against filepaths using the format
