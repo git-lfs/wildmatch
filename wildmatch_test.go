@@ -169,7 +169,7 @@ var Cases = []*Case{
 	{
 		Pattern: `**/foo`,
 		Subject: `foo`,
-		Match:   false,
+		Match:   true,
 	},
 	{
 		Pattern: `**/foo`,

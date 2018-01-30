@@ -165,11 +165,17 @@ func (d *doubleStar) Consume(path []string, isDir bool) ([]string, bool) {
 
 	// Otherwise, backtrack through the remainder of the path components,
 	// trying to find the maximal match.
-	for i := len(path); i > 0; i-- {
-		rest, ok := d.Until.Consume(path[i:], false)
-		if ok {
-			// As soon as a match has been found, return it.
-			return rest, ok
+	for i := len(path) - 1; i >= 0; i-- {
+		for j := len(path[i]) - 1; j >= 0; j-- {
+			x := make([]string, len(path)-i)
+			copy(x, path[i:])
+			x[0] = x[0][j:]
+
+			rest, ok := d.Until.Consume(x, false)
+			if ok {
+				// As soon as a match has been found, return it.
+				return rest, ok
+			}
 		}
 	}
 
