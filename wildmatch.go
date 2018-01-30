@@ -8,6 +8,9 @@ import (
 	"unicode/utf8"
 )
 
+// opt is an option type for configuring a new Wildmatch instance.
+type opt func(w *Wildmatch)
+
 // Wildmatch implements pattern matching against filepaths using the format
 // described in the package documentation.
 //
@@ -24,14 +27,18 @@ type Wildmatch struct {
 //
 // If the pattern is malformed, for instance, it has an unclosed character
 // group, escape sequence, or character class, NewWildmatch will panic().
-func NewWildmatch(p string) *Wildmatch {
-	p = filepath.Clean(p)
-
-	dirs := strings.Split(p, string(filepath.Separator))
-	return &Wildmatch{
-		ts: parseTokens(dirs),
-		p:  p,
+func NewWildmatch(p string, opts ...opt) *Wildmatch {
+	w := &Wildmatch{
+		p: filepath.Clean(p),
 	}
+
+	for _, opt := range opts {
+		opt(w)
+	}
+
+	w.ts = parseTokens(strings.Split(w.p, string(filepath.Separator)))
+
+	return w
 }
 
 // parseTokens parses a separated list of patterns into a sequence of
