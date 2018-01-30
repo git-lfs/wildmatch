@@ -37,6 +37,10 @@ type Wildmatch struct {
 	// matchPathname determines whether or not the "*" may traverse
 	// directories.
 	matchPathname bool
+
+	// caseFold allows the instance Wildmatch to match patterns with the
+	// same character but different case structures.
+	caseFold bool
 }
 
 // NewWildmatch constructs a new Wildmatch instance which matches filepaths
@@ -51,6 +55,11 @@ func NewWildmatch(p string, opts ...opt) *Wildmatch {
 
 	for _, opt := range opts {
 		opt(w)
+	}
+
+	if w.caseFold {
+		// Before parsing the pattern, convert it to lower-case.
+		w.p = strings.ToLower(w.p)
 	}
 
 	w.ts = parseTokens(
@@ -145,6 +154,14 @@ func (w *Wildmatch) Match(t string) bool {
 // returns a slice of remaining directory paths, and whether or not there was a
 // disagreement while matching.
 func (w *Wildmatch) consume(t string) ([]string, bool) {
+	if w.caseFold {
+		// If the receiving Wildmatch is case insensitive, the pattern
+		// "w.p" will be lower-case.
+		//
+		// To preserve insensitivity, lower the given path "t", as well.
+		t = strings.ToLower(t)
+	}
+
 	dirs := strings.Split(filepath.Clean(t), string(filepath.Separator))
 	isDir := strings.HasSuffix(t, string(filepath.Separator))
 
