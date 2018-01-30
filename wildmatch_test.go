@@ -8,6 +8,7 @@ type Case struct {
 	Pattern string
 	Subject string
 	Match   bool
+	Opts    []opt
 }
 
 func (c *Case) Assert(t *testing.T) {
@@ -19,7 +20,7 @@ func (c *Case) Assert(t *testing.T) {
 		}
 	}()
 
-	p := NewWildmatch(c.Pattern)
+	p := NewWildmatch(c.Pattern, c.Opts...)
 	if p.Match(c.Subject) != c.Match {
 		if c.Match {
 			t.Errorf("expected match: %s, %s", c.Pattern, c.Subject)
