@@ -169,7 +169,7 @@ var Cases = []*Case{
 	{
 		Pattern: `**/foo`,
 		Subject: `foo`,
-		Match:   false,
+		Match:   true,
 	},
 	{
 		Pattern: `**/foo`,
@@ -229,6 +229,17 @@ var Cases = []*Case{
 	{
 		Pattern: `**/bar/*/*`,
 		Subject: `deep/foo/bar/baz/x`,
+		Match:   true,
+	},
+	{
+		Pattern: `*.txt`,
+		Subject: `foo/bar/baz.txt`,
+		Match:   false,
+	},
+	{
+		Pattern: `*.txt`,
+		Subject: `foo/bar/baz.txt`,
+		Opts:    []opt{MatchPathname},
 		Match:   true,
 	},
 	{
