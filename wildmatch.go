@@ -89,6 +89,8 @@ func parseTokens(dirs []string, matchPathname bool) []token {
 	}
 
 	switch dirs[0] {
+	case "":
+		return parseTokens(dirs[1:], matchPathname)
 	case "**":
 		rest := parseTokens(dirs[1:], matchPathname)
 		if len(rest) == 0 {
