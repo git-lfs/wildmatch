@@ -472,11 +472,11 @@ func cons(head componentFn, tail []componentFn) []componentFn {
 // Consume implements token.Consume as above by applying the above set of
 // componentFn's in succession to the first element of the path tree.
 func (c *component) Consume(path []string, isDir bool) ([]string, bool) {
-	var head string
-	if len(path) != 0 {
-		head = path[0]
+	if len(path) == 0 {
+		return path, false
 	}
 
+	head := path[0]
 	for _, fn := range c.fns {
 		var ok bool
 
@@ -501,9 +501,6 @@ func (c *component) Consume(path []string, isDir bool) ([]string, bool) {
 		return path[1:], !isDir
 	}
 
-	if len(path) == 0 {
-		return path, true
-	}
 	return path[1:], true
 }
 
