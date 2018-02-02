@@ -125,9 +125,10 @@ func parseTokens(dirs []string, matchPathname bool) []token {
 
 		// Ordinarily, simply return the appropriate component, and
 		// continue on.
-		return append([]token{
-			&component{parseComponent(dirs[0])},
-		}, parseTokens(dirs[1:], matchPathname)...)
+		return append([]token{&component{
+			fns:     parseComponent(dirs[0]),
+			partial: matchPathname,
+		}}, parseTokens(dirs[1:], matchPathname)...)
 	}
 }
 
@@ -271,6 +272,8 @@ type component struct {
 	// fns is the list of componentFn implementations to be successively
 	// applied.
 	fns []componentFn
+	// partial allows for the component to match partial directory elements
+	partial bool
 }
 
 // parseComponent parses a single component from its string representation,
@@ -486,7 +489,7 @@ func (c *component) Consume(path []string, isDir bool) ([]string, bool) {
 	}
 
 	if len(head) > 0 {
-		return append([]string{head}, path[1:]...), true
+		return append([]string{head}, path[1:]...), c.partial
 	}
 
 	if len(path) == 1 {
