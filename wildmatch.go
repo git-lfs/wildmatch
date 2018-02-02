@@ -498,6 +498,10 @@ func (c *component) Consume(path []string, isDir bool) ([]string, bool) {
 		// _wasn't_ a directory.
 		return path[1:], !isDir
 	}
+
+	if len(path) == 0 {
+		return path, true
+	}
 	return path[1:], true
 }
 
