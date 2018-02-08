@@ -144,16 +144,6 @@ func nonEmpty(all []string) (ne []string) {
 	return ne
 }
 
-// HasPrefix returns true if and only if the pattern matched by the receiving
-// Wildmatch matches the given prefix of a full pattern.
-//
-// It is expected that callers will use this to "cull" sub-trees that are
-// uninteresting.
-func (w *Wildmatch) HasPrefix(prefix string) bool {
-	_, ok := w.consume(prefix)
-	return ok
-}
-
 // Match returns true if and only if the pattern matched by the receiving
 // Wildmatch matches the entire filepath "t".
 func (w *Wildmatch) Match(t string) bool {
