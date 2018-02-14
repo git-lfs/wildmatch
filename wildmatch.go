@@ -73,12 +73,72 @@ func NewWildmatch(p string, opts ...opt) *Wildmatch {
 		w.p = strings.ToLower(w.p)
 	}
 
-	w.ts = parseTokens(
-		strings.Split(w.p, string(filepath.Separator)),
-		w.matchPathname,
-	)
+	w.ts = parseTokens(split(w.p), w.matchPathname)
 
 	return w
+}
+
+// split splits a filepath "p" into its component parts (based on
+// filepath.Separator). It behaves similarly to the following:
+//
+//   strings.Split(p, string(filepath.Separator))
+//
+// but retains `\` (including on Windows) when followed by an escapable
+// character.
+//
+// For example, the following splits are valid:
+//
+//   "foo/bar/baz"   -> ["foo", "bar", "baz"]
+//   "foo/bar\*/baz" -> ["foo", "bar\*", "baz"]
+//   "foo\bar\*\baz" -> ["foo", "bar\*", "baz"]
+//   ""              -> []
+//   "/"             -> [""]
+func split(p string) []string {
+	var part string
+	parts := make([]string, 0)
+
+	for i := 0; i < len(p); {
+		c := p[i]
+
+		// If the immediate character is a '\' and the following
+		// character is escapable, add `\` and the character following
+		// to the current part.
+		if c == '\\' && i+1 < len(p) && escapable(p[i+1]) {
+			part = part + p[i:i+2]
+			i = i + 2
+			continue
+		}
+
+		switch c {
+		case filepath.Separator:
+			// If we're at a filepath.Separator, the current part is now
+			// stale. Append it to the parts list and move on.
+			parts = append(parts, part)
+			part = ""
+		default:
+			// Otherwise, we're working towards a
+			// filepath.Separator; add the character "c" to the
+			// current part.
+			part = part + string(c)
+		}
+
+		i += 1
+	}
+
+	if len(p) > 0 {
+		return append(parts, part)
+	}
+	return nil
+}
+
+const (
+	// escapes is a constant string containing all escapable characters
+	escapes = "\\[]*?"
+)
+
+// escapable returns whether the given "c" is escapable.
+func escapable(c byte) bool {
+	return strings.IndexByte(escapes, c) > -1
 }
 
 // parseTokens parses a separated list of patterns into a sequence of
