@@ -2,7 +2,6 @@ package wildmatch
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -35,6 +34,10 @@ var (
 	SystemCase opt
 )
 
+const (
+	sep byte = '/'
+)
+
 // Wildmatch implements pattern matching against filepaths using the format
 // described in the package documentation.
 //
@@ -60,9 +63,7 @@ type Wildmatch struct {
 // If the pattern is malformed, for instance, it has an unclosed character
 // group, escape sequence, or character class, NewWildmatch will panic().
 func NewWildmatch(p string, opts ...opt) *Wildmatch {
-	w := &Wildmatch{
-		p: filepath.Clean(p),
-	}
+	w := &Wildmatch{p: p}
 
 	for _, opt := range opts {
 		opt(w)
@@ -78,10 +79,10 @@ func NewWildmatch(p string, opts ...opt) *Wildmatch {
 	return w
 }
 
-// split splits a filepath "p" into its component parts (based on
-// filepath.Separator). It behaves similarly to the following:
+// split splits a filepath "p" into its component parts (based on sep). It
+// behaves similarly to the following:
 //
-//   strings.Split(p, string(filepath.Separator))
+//   strings.Split(p, string(sep))
 //
 // but retains `\` (including on Windows) when followed by an escapable
 // character.
@@ -110,15 +111,14 @@ func split(p string) []string {
 		}
 
 		switch c {
-		case filepath.Separator:
-			// If we're at a filepath.Separator, the current part is now
+		case sep:
+			// If we're at a separator, the current part is now
 			// stale. Append it to the parts list and move on.
 			parts = append(parts, part)
 			part = ""
 		default:
-			// Otherwise, we're working towards a
-			// filepath.Separator; add the character "c" to the
-			// current part.
+			// Otherwise, we're working towards a separator; add the
+			// character "c" to the current part.
 			part = part + string(c)
 		}
 
@@ -226,8 +226,8 @@ func (w *Wildmatch) consume(t string) ([]string, bool) {
 		t = strings.ToLower(t)
 	}
 
-	dirs := strings.Split(filepath.Clean(t), string(filepath.Separator))
-	isDir := strings.HasSuffix(t, string(filepath.Separator))
+	dirs := strings.Split(t, string(sep))
+	isDir := strings.HasSuffix(t, string(sep))
 
 	// Match each directory token-wise, allowing each token to consume more
 	// than one directory in the case of the '**' pattern.
