@@ -2,7 +2,6 @@ package wildmatch
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -35,6 +34,10 @@ var (
 	SystemCase opt
 )
 
+const (
+	sep byte = '/'
+)
+
 // Wildmatch implements pattern matching against filepaths using the format
 // described in the package documentation.
 //
@@ -60,9 +63,7 @@ type Wildmatch struct {
 // If the pattern is malformed, for instance, it has an unclosed character
 // group, escape sequence, or character class, NewWildmatch will panic().
 func NewWildmatch(p string, opts ...opt) *Wildmatch {
-	w := &Wildmatch{
-		p: filepath.Clean(p),
-	}
+	w := &Wildmatch{p: p}
 
 	for _, opt := range opts {
 		opt(w)
@@ -73,12 +74,71 @@ func NewWildmatch(p string, opts ...opt) *Wildmatch {
 		w.p = strings.ToLower(w.p)
 	}
 
-	w.ts = parseTokens(
-		strings.Split(w.p, string(filepath.Separator)),
-		w.matchPathname,
-	)
+	w.ts = parseTokens(split(w.p), w.matchPathname)
 
 	return w
+}
+
+// split splits a filepath "p" into its component parts (based on sep). It
+// behaves similarly to the following:
+//
+//   strings.Split(p, string(sep))
+//
+// but retains `\` (including on Windows) when followed by an escapable
+// character.
+//
+// For example, the following splits are valid:
+//
+//   "foo/bar/baz"   -> ["foo", "bar", "baz"]
+//   "foo/bar\*/baz" -> ["foo", "bar\*", "baz"]
+//   "foo\bar\*\baz" -> ["foo", "bar\*", "baz"]
+//   ""              -> []
+//   "/"             -> [""]
+func split(p string) []string {
+	var part string
+	parts := make([]string, 0)
+
+	for i := 0; i < len(p); {
+		c := p[i]
+
+		// If the immediate character is a '\' and the following
+		// character is escapable, add `\` and the character following
+		// to the current part.
+		if c == '\\' && i+1 < len(p) && escapable(p[i+1]) {
+			part = part + p[i:i+2]
+			i = i + 2
+			continue
+		}
+
+		switch c {
+		case sep:
+			// If we're at a separator, the current part is now
+			// stale. Append it to the parts list and move on.
+			parts = append(parts, part)
+			part = ""
+		default:
+			// Otherwise, we're working towards a separator; add the
+			// character "c" to the current part.
+			part = part + string(c)
+		}
+
+		i += 1
+	}
+
+	if len(p) > 0 {
+		return append(parts, part)
+	}
+	return nil
+}
+
+const (
+	// escapes is a constant string containing all escapable characters
+	escapes = "\\[]*?"
+)
+
+// escapable returns whether the given "c" is escapable.
+func escapable(c byte) bool {
+	return strings.IndexByte(escapes, c) > -1
 }
 
 // parseTokens parses a separated list of patterns into a sequence of
@@ -166,8 +226,8 @@ func (w *Wildmatch) consume(t string) ([]string, bool) {
 		t = strings.ToLower(t)
 	}
 
-	dirs := strings.Split(filepath.Clean(t), string(filepath.Separator))
-	isDir := strings.HasSuffix(t, string(filepath.Separator))
+	dirs := strings.Split(t, string(sep))
+	isDir := strings.HasSuffix(t, string(sep))
 
 	// Match each directory token-wise, allowing each token to consume more
 	// than one directory in the case of the '**' pattern.
