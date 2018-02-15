@@ -11,17 +11,6 @@ import (
 type opt func(w *Wildmatch)
 
 var (
-	// MatchPathname allows for matches "anywhere" in the pathname, by a
-	// de-facto replacement of the "*" operator into "**/".
-	//
-	// For instance, without MatchPathname, the pattern "*.txt" will match
-	// "x.txt", but not "y/z.txt". With MatchPathname enabled, the above
-	// pattern will match both of the aforementioned pathnames (i.e., the
-	// pattern will behave equivalently to **/*.txt").
-	MatchPathname opt = func(w *Wildmatch) {
-		w.matchPathname = true
-	}
-
 	// CaseFold allows the receiving Wildmatch to match paths with
 	// different case structuring as in the pattern.
 	CaseFold opt = func(w *Wildmatch) {
@@ -48,10 +37,6 @@ type Wildmatch struct {
 	// p is the raw pattern used to derive the token set.
 	p string
 
-	// matchPathname determines whether or not the "*" may traverse
-	// directories.
-	matchPathname bool
-
 	// caseFold allows the instance Wildmatch to match patterns with the
 	// same character but different case structures.
 	caseFold bool
@@ -74,7 +59,7 @@ func NewWildmatch(p string, opts ...opt) *Wildmatch {
 		w.p = strings.ToLower(w.p)
 	}
 
-	w.ts = parseTokens(strings.Split(w.p, string(sep)), w.matchPathname)
+	w.ts = parseTokens(strings.Split(w.p, string(sep)))
 
 	return w
 }
@@ -91,16 +76,16 @@ func escapable(c byte) bool {
 
 // parseTokens parses a separated list of patterns into a sequence of
 // representative Tokens that will compose the pattern when applied in sequence.
-func parseTokens(dirs []string, matchPathname bool) []token {
+func parseTokens(dirs []string) []token {
 	if len(dirs) == 0 {
 		return make([]token, 0)
 	}
 
 	switch dirs[0] {
 	case "":
-		return parseTokens(dirs[1:], matchPathname)
+		return parseTokens(dirs[1:])
 	case "**":
-		rest := parseTokens(dirs[1:], matchPathname)
+		rest := parseTokens(dirs[1:])
 		if len(rest) == 0 {
 			// If there are no remaining tokens, return a lone
 			// doubleStar token.
@@ -116,29 +101,11 @@ func parseTokens(dirs []string, matchPathname bool) []token {
 			Until: rest[0],
 		}}, rest[1:]...)
 	default:
-		if i := strings.Index(dirs[0], "*"); i > -1 && matchPathname {
-			// If there exists a single "*" somewhere in the
-			// pattern, replace it with a "**" if matchPathname is
-			// set.
-			//
-			// Split the token <first>*<rest> into [<first>, "*",
-			// <rest>], removing empty parts, and prepending it to
-			// the remainder of dirs.
-			//
-			// Reprocess after splitting.
-			return parseTokens(append(nonEmpty([]string{
-				dirs[0][:i],
-				"**",
-				dirs[0][i+1:],
-			}), dirs[1:]...), matchPathname)
-		}
-
 		// Ordinarily, simply return the appropriate component, and
 		// continue on.
 		return append([]token{&component{
-			fns:     parseComponent(dirs[0]),
-			partial: matchPathname,
-		}}, parseTokens(dirs[1:], matchPathname)...)
+			fns: parseComponent(dirs[0]),
+		}}, parseTokens(dirs[1:])...)
 	}
 }
 
@@ -304,8 +271,6 @@ type component struct {
 	// fns is the list of componentFn implementations to be successively
 	// applied.
 	fns []componentFn
-	// partial allows for the component to match partial directory elements
-	partial bool
 }
 
 // parseComponent parses a single component from its string representation,
@@ -521,7 +486,7 @@ func (c *component) Consume(path []string, isDir bool) ([]string, bool) {
 	}
 
 	if len(head) > 0 {
-		return append([]string{head}, path[1:]...), c.partial
+		return append([]string{head}, path[1:]...), false
 	}
 
 	if len(path) == 1 {

@@ -252,30 +252,6 @@ var Cases = []*Case{
 		Match:   true,
 	},
 	{
-		Pattern: `foo*`,
-		Subject: `foobar`,
-		Opts:    []opt{MatchPathname},
-		Match:   true,
-	},
-	{
-		Pattern: `*foo*`,
-		Subject: `somethingfoobar`,
-		Opts:    []opt{MatchPathname},
-		Match:   true,
-	},
-	{
-		Pattern: `*foo`,
-		Subject: `barfoo`,
-		Opts:    []opt{MatchPathname},
-		Match:   true,
-	},
-	{
-		Pattern: `*.txt`,
-		Subject: `foo/bar/baz.txt`,
-		Opts:    []opt{MatchPathname},
-		Match:   true,
-	},
-	{
 		Pattern: `a[c-c]st`,
 		Subject: `acrt`,
 		Match:   false,
