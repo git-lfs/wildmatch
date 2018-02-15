@@ -210,25 +210,16 @@ func (d *doubleStar) Consume(path []string, isDir bool) ([]string, bool) {
 		return nil, true
 	}
 
-	// Otherwise, backtrack through the remainder of the path components,
-	// trying to find the maximal match.
-	for i := len(path) - 1; i >= 0; i-- {
-		for j := len(path[i]) - 1; j >= 0; j-- {
-			x := make([]string, len(path)-i)
-			copy(x, path[i:])
-			x[0] = x[0][j:]
-
-			rest, ok := d.Until.Consume(x, false)
-			if ok {
-				// As soon as a match has been found, return it.
-				return rest, ok
-			}
+	for i := len(path); i > 0; i-- {
+		rest, ok := d.Until.Consume(path[i:], false)
+		if ok {
+			return rest, ok
 		}
 	}
 
-	// If no match has been found, don't bother exhausting the remainder of
-	// the path and return immediately.
-	return path, false
+	// If no match has been found, we assume that the '**' token matches the
+	// empty string, and defer pattern matching to the rest of the path.
+	return d.Until.Consume(path, isDir)
 }
 
 // String implements Component.String.

@@ -607,6 +607,11 @@ var Cases = []*Case{
 		Opts:    []opt{CaseFold},
 		Match:   true,
 	},
+	{
+		Pattern: `**/a*.txt`,
+		Subject: `foo-a.txt`,
+		Match:   false,
+	},
 }
 
 func TestWildmatch(t *testing.T) {
