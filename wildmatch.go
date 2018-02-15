@@ -223,6 +223,10 @@ type token interface {
 	// disk, and a bool indicating whether the given path is a directory
 	// (i.e., "foo/bar/" is, but "foo/bar" isn't).
 	Consume(path []string, isDir bool) ([]string, bool)
+
+	// String returns the string representation this component of the
+	// pattern; i.e., a string that, when parsed, would form the same token.
+	String() string
 }
 
 // doubleStar is an implementation of the Token interface which greedily matches
@@ -260,10 +264,38 @@ func (d *doubleStar) Consume(path []string, isDir bool) ([]string, bool) {
 	return path, false
 }
 
+// String implements Component.String.
+func (d *doubleStar) String() string {
+	if d.Until == nil {
+		return "**"
+	}
+	return fmt.Sprintf("**/%s", d.Until.String())
+}
+
 // componentFn is a functional type designed to match a single component of a
 // directory structure by reducing the unmatched part, and returning whether or
 // not a match was successful.
-type componentFn func(s string) (rest string, ok bool)
+type componentFn interface {
+	Apply(s string) (rest string, ok bool)
+	String() string
+}
+
+// cfn is a wrapper type for the Component interface that includes an applicable
+// function, and a string that represents it.
+type cfn struct {
+	fn  func(s string) (rest string, ok bool)
+	str string
+}
+
+// Apply executes the component function as described above.
+func (c *cfn) Apply(s string) (rest string, ok bool) {
+	return c.fn(s)
+}
+
+// String returns the string representation of this component.
+func (c *cfn) String() string {
+	return c.str
+}
 
 // component is an implementation of the Token interface, which matches a single
 // component at the front of a tree structure by successively applying
@@ -480,7 +512,7 @@ func (c *component) Consume(path []string, isDir bool) ([]string, bool) {
 
 		// Apply successively the component functions to make progress
 		// matching the head.
-		if head, ok = fn(head); !ok {
+		if head, ok = fn.Apply(head); !ok {
 			// If any of the functions failed to match, there are
 			// no other paths to match success, so return a failure
 			// immediately.
@@ -502,13 +534,26 @@ func (c *component) Consume(path []string, isDir bool) ([]string, bool) {
 	return path[1:], true
 }
 
+// String implements token.String.
+func (c *component) String() string {
+	var str string
+
+	for _, fn := range c.fns {
+		str += fn.String()
+	}
+	return str
+}
+
 // substring returns a componentFn that matches a prefix of "sub".
 func substring(sub string) componentFn {
-	return func(s string) (rest string, ok bool) {
-		if !strings.HasPrefix(s, sub) {
-			return s, false
-		}
-		return s[len(sub):], true
+	return &cfn{
+		fn: func(s string) (rest string, ok bool) {
+			if !strings.HasPrefix(s, sub) {
+				return s, false
+			}
+			return s[len(sub):], true
+		},
+		str: sub,
 	}
 }
 
@@ -520,7 +565,7 @@ func wildcard(n int, fns []componentFn) componentFn {
 		for _, fn := range fns {
 			var ok bool
 
-			if head, ok = fn(head); !ok {
+			if head, ok = fn.Apply(head); !ok {
 				return s, false
 			}
 		}
@@ -531,21 +576,29 @@ func wildcard(n int, fns []componentFn) componentFn {
 		return "", true
 	}
 
-	return func(s string) (rest string, ok bool) {
-		if n > -1 {
-			if n > len(s) {
-				return "", false
-			}
-			return until(s[n:])
-		}
+	var str string = "*"
+	for _, fn := range fns {
+		str += fn.String()
+	}
 
-		for i := len(s); i > 0; i-- {
-			rest, ok = until(s[i:])
-			if ok {
-				return rest, ok
+	return &cfn{
+		fn: func(s string) (rest string, ok bool) {
+			if n > -1 {
+				if n > len(s) {
+					return "", false
+				}
+				return until(s[n:])
 			}
-		}
-		return until(s)
+
+			for i := len(s); i > 0; i-- {
+				rest, ok = until(s[i:])
+				if ok {
+					return rest, ok
+				}
+			}
+			return until(s)
+		},
+		str: str,
 	}
 }
 
@@ -553,40 +606,43 @@ func wildcard(n int, fns []componentFn) componentFn {
 // that a single character can match if and only if it is included in one of the
 // includes (or true if there were no includes) and none of the excludes.
 func charClass(include, exclude []runeFn) componentFn {
-	return func(s string) (rest string, ok bool) {
-		if len(s) == 0 {
-			return s, false
-		}
-
-		// Find "r", the first rune in the string "s".
-		r, l := utf8.DecodeRuneInString(s)
-
-		var match bool
-		for _, ifn := range include {
-			// Attempt to find a match on "r" with "ifn".
-			if ifn(r) {
-				match = true
-				break
-			}
-		}
-
-		// If there wasn't a match and there were some including
-		// patterns, return a failure to match. Otherwise, continue on
-		// to make sure that no patterns exclude the rune "r".
-		if !match && len(include) != 0 {
-			return s, false
-		}
-
-		for _, efn := range exclude {
-			// Attempt to find a negative match on "r" with "efn".
-			if efn(r) {
+	return &cfn{
+		fn: func(s string) (rest string, ok bool) {
+			if len(s) == 0 {
 				return s, false
 			}
-		}
 
-		// If we progressed this far, return the remainder of the
-		// string.
-		return s[l:], true
+			// Find "r", the first rune in the string "s".
+			r, l := utf8.DecodeRuneInString(s)
+
+			var match bool
+			for _, ifn := range include {
+				// Attempt to find a match on "r" with "ifn".
+				if ifn(r) {
+					match = true
+					break
+				}
+			}
+
+			// If there wasn't a match and there were some including
+			// patterns, return a failure to match. Otherwise, continue on
+			// to make sure that no patterns exclude the rune "r".
+			if !match && len(include) != 0 {
+				return s, false
+			}
+
+			for _, efn := range exclude {
+				// Attempt to find a negative match on "r" with "efn".
+				if efn(r) {
+					return s, false
+				}
+			}
+
+			// If we progressed this far, return the remainder of the
+			// string.
+			return s[l:], true
+		},
+		str: "<charclass>",
 	}
 }
 
