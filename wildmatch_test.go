@@ -327,11 +327,6 @@ var Cases = []*Case{
 		Match:   true,
 	},
 	{
-		Pattern: `\a\b\c`,
-		Subject: `abc`,
-		Match:   true,
-	},
-	{
 		Pattern: `''`,
 		Subject: `foo`,
 		Match:   false,
@@ -560,16 +555,6 @@ var Cases = []*Case{
 		Pattern: `[,-.]`,
 		Subject: `-.]`,
 		Match:   false,
-	},
-	{
-		Pattern: `[\1-\3]`,
-		Subject: `2`,
-		Match:   true,
-	},
-	{
-		Pattern: `[\1-\3]`,
-		Subject: `3`,
-		Match:   true,
 	},
 	{
 		Pattern: `-*-*-*-*-*-*-12-*-*-*-m-*-*-*`,
