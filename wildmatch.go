@@ -48,7 +48,7 @@ type Wildmatch struct {
 // If the pattern is malformed, for instance, it has an unclosed character
 // group, escape sequence, or character class, NewWildmatch will panic().
 func NewWildmatch(p string, opts ...opt) *Wildmatch {
-	w := &Wildmatch{p: p}
+	w := &Wildmatch{p: slashEscape(p)}
 
 	for _, opt := range opts {
 		opt(w)
