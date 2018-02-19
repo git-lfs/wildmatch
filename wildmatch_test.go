@@ -604,3 +604,34 @@ func TestWildmatch(t *testing.T) {
 		c.Assert(t)
 	}
 }
+
+type SlashCase struct {
+	Given  string
+	Expect string
+}
+
+func (c *SlashCase) Assert(t *testing.T) {
+	got := slashEscape(c.Given)
+
+	if c.Expect != got {
+		t.Errorf("wildmatch: expected slashEscape(\"%s\") -> %s, got: %s",
+			c.Given,
+			c.Expect,
+			got,
+		)
+	}
+}
+
+func TestSlashEscape(t *testing.T) {
+	for _, c := range []*SlashCase{
+		{Given: ``, Expect: ``},
+		{Given: `foo/bar`, Expect: `foo/bar`},
+		{Given: `foo\bar`, Expect: `foo/bar`},
+		{Given: `foo\*bar`, Expect: `foo\*bar`},
+		{Given: `foo\?bar`, Expect: `foo\?bar`},
+		{Given: `foo\[bar`, Expect: `foo\[bar`},
+		{Given: `foo\]bar`, Expect: `foo\]bar`},
+	} {
+		c.Assert(t)
+	}
+}
