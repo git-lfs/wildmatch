@@ -599,6 +599,12 @@ var Cases = []*Case{
 	},
 	{
 		Pattern: `*.txt`,
+		Subject: `file.txt`,
+		Opts:    []opt{Basename},
+		Match:   true,
+	},
+	{
+		Pattern: `*.txt`,
 		Subject: `path/to/file.txt`,
 		Opts:    []opt{Basename},
 		Match:   true,
