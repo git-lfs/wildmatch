@@ -13,8 +13,11 @@ type opt func(w *Wildmatch)
 
 var (
 	// Basename allows the receiving Wildmatch to match paths where the
-	// pattern matches only the basename of the path. If the given pattern
-	// contains directory separators, the entire path is matched.
+	// pattern matches only the basename of the path when the pattern does
+	// not contain directory separators.
+	//
+	// If the pattern contains directory separators, or if this option is
+	// not given, the entire path will be matched.
 	Basename opt = func(w *Wildmatch) {
 		w.basename = true
 	}
