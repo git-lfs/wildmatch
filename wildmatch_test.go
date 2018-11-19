@@ -582,6 +582,11 @@ var Cases = []*Case{
 		Match:   false,
 	},
 	{
+		Pattern: `file[[:space:]]with[[:space:]]spaces.\#`,
+		Subject: `file with spaces.#`,
+		Match:   true,
+	},
+	{
 		Pattern: `foo`,
 		Subject: `FOO`,
 		Match:   false,
@@ -666,6 +671,7 @@ func TestSlashEscape(t *testing.T) {
 		{Given: `foo\?bar`, Expect: `foo\?bar`},
 		{Given: `foo\[bar`, Expect: `foo\[bar`},
 		{Given: `foo\]bar`, Expect: `foo\]bar`},
+		{Given: `foo\#bar`, Expect: `foo\#bar`},
 	} {
 		c.Assert(t)
 	}
