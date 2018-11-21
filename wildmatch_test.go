@@ -1,6 +1,7 @@
 package wildmatch
 
 import (
+	"runtime"
 	"testing"
 )
 
@@ -674,5 +675,16 @@ func TestSlashEscape(t *testing.T) {
 		{Given: `foo\#bar`, Expect: `foo\#bar`},
 	} {
 		c.Assert(t)
+	}
+}
+
+func TestCaseFold(t *testing.T) {
+	m := NewWildmatch("*.bin", SystemCase)
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+		if !m.Match("UPCASE.BIN") {
+			t.Errorf("wildmatch: expected system case to be folding")
+		}
+	} else if m.Match("UPCASE.BIN") {
+		t.Errorf("wildmatch: expected system case to be non-folding")
 	}
 }
