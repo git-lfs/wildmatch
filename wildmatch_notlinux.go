@@ -3,5 +3,5 @@
 package wildmatch
 
 func init() {
-	SystemCase = func(w *Wildmatch) {}
+	SystemCase = CaseFold
 }
