@@ -638,6 +638,16 @@ var Cases = []*Case{
 		Opts:    []opt{Basename},
 		Match:   false,
 	},
+	{
+		Pattern: `anotherfile.txt/`,
+		Subject: `anotherfile.txt`,
+		Match:   false,
+	},
+	{
+		Pattern: `**/pdfkit.frameworks/pdfkit/**`,
+		Subject: `MyFolder/libs/pdfkit.frameworks/pdfkit`,
+		Match:   false,
+	},
 }
 
 func TestWildmatch(t *testing.T) {

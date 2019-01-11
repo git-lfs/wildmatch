@@ -133,6 +133,9 @@ func parseTokens(dirs []string) []token {
 
 	switch dirs[0] {
 	case "":
+		if len(dirs) == 1 {
+			return []token{&component{fns: []componentFn{substring("")}}}
+		}
 		return parseTokens(dirs[1:])
 	case "**":
 		rest := parseTokens(dirs[1:])
@@ -260,6 +263,10 @@ type doubleStar struct {
 
 // Consume implements token.Consume as above.
 func (d *doubleStar) Consume(path []string, isDir bool) ([]string, bool) {
+	if len(path) == 0 {
+		return path, false
+	}
+
 	// If there are no remaining tokens to match, allow matching the entire
 	// path.
 	if d.Until == nil {
