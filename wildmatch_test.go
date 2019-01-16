@@ -6,10 +6,11 @@ import (
 )
 
 type Case struct {
-	Pattern string
-	Subject string
-	Match   bool
-	Opts    []opt
+	Pattern   string
+	Subject   string
+	Match     bool
+	Opts      []opt
+	MatchOpts MatchOpts
 }
 
 func (c *Case) Assert(t *testing.T) {
@@ -22,7 +23,8 @@ func (c *Case) Assert(t *testing.T) {
 	}()
 
 	p := NewWildmatch(c.Pattern, c.Opts...)
-	if p.Match(c.Subject) != c.Match {
+	if (c.MatchOpts != MatchOpts{} && p.MatchWithOpts(c.Subject, c.MatchOpts) != c.Match) ||
+		(c.MatchOpts == MatchOpts{} && p.Match(c.Subject) != c.Match) {
 		if c.Match {
 			t.Errorf("expected match: %s, %s", c.Pattern, c.Subject)
 		} else {
@@ -639,8 +641,39 @@ var Cases = []*Case{
 		Match:   false,
 	},
 	{
-		Pattern: `anotherfile.txt/`,
-		Subject: `anotherfile.txt`,
+		// GitAttribute-style matching directory.
+		// false becalse gitattribute never matches directories.
+		Pattern:   `anotherfile.txt/`,
+		Subject:   `anotherfile.txt`,
+		Opts:      []opt{GitAttributes},
+		MatchOpts: MatchOpts{IsDirectory: true},
+		Match:     false,
+	},
+	{
+		// gitAttribute-style matching normal file.
+		// false as gitattribute matches ending in '/' indicate
+		// trying to match directory but gitattribute never matches directory
+		Pattern: `anotherfile1.txt/`,
+		Subject: `anotherfile1.txt`,
+		Opts:    []opt{GitAttributes},
+		Match:   false,
+	},
+	{
+		// gitignore-style matching directory.
+		Pattern:   `anotherfile2.txt/`,
+		Subject:   `anotherfile2.txt`,
+		MatchOpts: MatchOpts{IsDirectory: true},
+		Match:     true,
+	},
+	{
+		Pattern: `anotherfile3.txt/`,
+		Subject: `anotherfile3.txt`,
+		Match:   false,
+	},
+	{
+		Pattern: `anotherfile4.txt`,
+		Subject: `anotherfile4.txt/`,
+		Opts:    []opt{GitAttributes},
 		Match:   false,
 	},
 	{
