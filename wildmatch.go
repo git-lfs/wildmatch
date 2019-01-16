@@ -28,6 +28,12 @@ var (
 		w.caseFold = true
 	}
 
+	// GitAttributes augments the functionality of the matching algorithm
+	// to match behavior of git when working with .gitattributes files.
+	GitAttributes opt = func(w *Wildmatch) {
+		w.gitattributes = true
+	}
+
 	// SystemCase either folds or does not fold filepaths and patterns,
 	// according to whether or not the operating system on which Wildmatch
 	// runs supports case sensitive files or not.
@@ -55,6 +61,15 @@ type Wildmatch struct {
 	// caseFold allows the instance Wildmatch to match patterns with the
 	// same character but different case structures.
 	caseFold bool
+
+	// gitattributes flag indicates that logic specific to the .gitattributes file
+	// should be used. The two main differences are that negative expressions are
+	// not allowed and directories are not matched.
+	gitattributes bool
+}
+
+type MatchOpts struct {
+	IsDirectory bool
 }
 
 // NewWildmatch constructs a new Wildmatch instance which matches filepaths
@@ -133,8 +148,12 @@ func parseTokens(dirs []string) []token {
 
 	switch dirs[0] {
 	case "":
+		if len(dirs) == 1 {
+			return []token{&component{fns: []componentFn{substring("")}}}
+		}
 		return parseTokens(dirs[1:])
 	case "**":
+
 		rest := parseTokens(dirs[1:])
 		if len(rest) == 0 {
 			// If there are no remaining tokens, return a lone
@@ -172,7 +191,15 @@ func nonEmpty(all []string) (ne []string) {
 // Match returns true if and only if the pattern matched by the receiving
 // Wildmatch matches the entire filepath "t".
 func (w *Wildmatch) Match(t string) bool {
-	dirs, ok := w.consume(t)
+	dirs, ok := w.consume(t, MatchOpts{})
+	if !ok {
+		return false
+	}
+	return len(dirs) == 0
+}
+
+func (w *Wildmatch) MatchWithOpts(t string, opt MatchOpts) bool {
+	dirs, ok := w.consume(t, opt)
 	if !ok {
 		return false
 	}
@@ -182,7 +209,7 @@ func (w *Wildmatch) Match(t string) bool {
 // consume performs the inner match of "t" against the receiver's pattern, and
 // returns a slice of remaining directory paths, and whether or not there was a
 // disagreement while matching.
-func (w *Wildmatch) consume(t string) ([]string, bool) {
+func (w *Wildmatch) consume(t string, opt MatchOpts) ([]string, bool) {
 	if w.basename {
 		// If the receiving Wildmatch has basename set, the pattern
 		// matches only the basename of the given "t".
@@ -197,8 +224,24 @@ func (w *Wildmatch) consume(t string) ([]string, bool) {
 		t = strings.ToLower(t)
 	}
 
+	var isDir bool
+	if opt.IsDirectory {
+		isDir = true
+		// Standardize the formation of subject string so directories always
+		// end with '/'
+		if !strings.HasSuffix(t, "/") {
+			t = t + "/"
+		}
+	} else {
+		isDir = strings.HasSuffix(t, string(sep))
+	}
+
 	dirs := strings.Split(t, string(sep))
-	isDir := strings.HasSuffix(t, string(sep))
+
+	// Git-attribute style matching can never match a directory
+	if w.gitattributes && isDir {
+		return dirs, false
+	}
 
 	// Match each directory token-wise, allowing each token to consume more
 	// than one directory in the case of the '**' pattern.
@@ -260,6 +303,10 @@ type doubleStar struct {
 
 // Consume implements token.Consume as above.
 func (d *doubleStar) Consume(path []string, isDir bool) ([]string, bool) {
+	if len(path) == 0 {
+		return path, false
+	}
+
 	// If there are no remaining tokens to match, allow matching the entire
 	// path.
 	if d.Until == nil {
@@ -540,7 +587,7 @@ func (c *component) Consume(path []string, isDir bool) ([]string, bool) {
 		// Components can not match directories. If we were matching the
 		// last path in a tree structure, we can only match if it
 		// _wasn't_ a directory.
-		return path[1:], !isDir
+		return path[1:], true
 	}
 
 	return path[1:], true
