@@ -244,19 +244,44 @@ func (w *Wildmatch) consume(t string, opt MatchOpts) ([]string, bool) {
 	}
 
 	// Match each directory token-wise, allowing each token to consume more
-	// than one directory in the case of the '**' pattern.
-	for _, tok := range w.ts {
-		var ok bool
+	// than one directory in the case of the '**' pattern. When matching a
+	// token with directory, store all of the possible solutions and iterate
+	// either until the last token consumes all of the dirs or all possible
+	// state paths are used up.
 
-		dirs, ok = tok.Consume(dirs, isDir)
-		if !ok {
-			// If a pattern could not match the remainder of the
-			// filepath, return so immediately, along with the paths
-			// that we did successfully manage to match.
-			return dirs, false
+	var longestMatch []string
+
+	type matchState struct {
+		path   []string
+		tokens []token
+	}
+	matchStates := []matchState{matchState{path: dirs, tokens: w.ts}}
+
+	for len(matchStates) > 0 {
+		nextState := matchStates[0]
+		matchStates = matchStates[1:]
+
+		if len(nextState.tokens) == 0 && len(nextState.path) == 0 {
+			return []string{}, true
+		}
+
+		matchedPaths, ok := nextState.tokens[0].Consume(nextState.path, isDir)
+
+		// Iterte through the returned paths, if sucessfully matched, append
+		// matches to the states from which we can continue.
+		for _, path := range matchedPaths {
+			if len(strings.Join(path, "")) < len(strings.Join(longestMatch, "")) {
+				longestMatch = path
+			}
+			if ok {
+				matchStates = append(matchStates, matchState{
+					path:   path,
+					tokens: nextState.tokens[1:],
+				})
+			}
 		}
 	}
-	return dirs, true
+	return longestMatch, false
 }
 
 // String implements fmt.Stringer and returns the receiver's pattern in the format
@@ -288,7 +313,7 @@ type token interface {
 	// Consume accepts a slice representing a path-delimited filepath on
 	// disk, and a bool indicating whether the given path is a directory
 	// (i.e., "foo/bar/" is, but "foo/bar" isn't).
-	Consume(path []string, isDir bool) ([]string, bool)
+	Consume(path []string, isDir bool) ([][]string, bool)
 
 	// String returns the string representation this component of the
 	// pattern; i.e., a string that, when parsed, would form the same token.
@@ -302,27 +327,26 @@ type doubleStar struct {
 }
 
 // Consume implements token.Consume as above.
-func (d *doubleStar) Consume(path []string, isDir bool) ([]string, bool) {
+func (d *doubleStar) Consume(path []string, isDir bool) ([][]string, bool) {
 	if len(path) == 0 {
-		return path, false
+		return [][]string{path}, false
 	}
 
 	// If there are no remaining tokens to match, allow matching the entire
 	// path.
 	if d.Until == nil {
-		return nil, true
+		return [][]string{[]string{}}, true
 	}
 
-	for i := len(path); i > 0; i-- {
+	var matches [][]string
+	for i := len(path); i >= 0; i-- {
 		rest, ok := d.Until.Consume(path[i:], false)
 		if ok {
-			return rest, ok
+			matches = append(matches, rest...)
 		}
 	}
 
-	// If no match has been found, we assume that the '**' token matches the
-	// empty string, and defer pattern matching to the rest of the path.
-	return d.Until.Consume(path, isDir)
+	return matches, len(matches) > 0
 }
 
 // String implements Component.String.
@@ -560,9 +584,9 @@ func cons(head componentFn, tail []componentFn) []componentFn {
 
 // Consume implements token.Consume as above by applying the above set of
 // componentFn's in succession to the first element of the path tree.
-func (c *component) Consume(path []string, isDir bool) ([]string, bool) {
+func (c *component) Consume(path []string, isDir bool) ([][]string, bool) {
 	if len(path) == 0 {
-		return path, false
+		return [][]string{}, false
 	}
 
 	head := path[0]
@@ -575,22 +599,19 @@ func (c *component) Consume(path []string, isDir bool) ([]string, bool) {
 			// If any of the functions failed to match, there are
 			// no other paths to match success, so return a failure
 			// immediately.
-			return path, false
+			return [][]string{path}, false
 		}
 	}
 
 	if len(head) > 0 {
-		return append([]string{head}, path[1:]...), false
+		return [][]string{append([]string{head}, path[1:]...)}, false
 	}
 
 	if len(path) == 1 {
-		// Components can not match directories. If we were matching the
-		// last path in a tree structure, we can only match if it
-		// _wasn't_ a directory.
-		return path[1:], true
+		return [][]string{path[1:]}, true
 	}
 
-	return path[1:], true
+	return [][]string{path[1:]}, true
 }
 
 // String implements token.String.

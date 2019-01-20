@@ -681,6 +681,31 @@ var Cases = []*Case{
 		Subject: `MyFolder/libs/pdfkit.frameworks/pdfkit`,
 		Match:   false,
 	},
+	{
+		Pattern: `**/stop/file.txt`,
+		Subject: `a/b/c/stop/d/e/f/stop/file.txt`,
+		Match:   true,
+	},
+	{
+		Pattern: `**/*/some-file.txt`,
+		Subject: `path/to/some-file.txt`,
+		Match:   true,
+	},
+	{
+		Pattern: `**/*a/**/*a/**/*a/here.txt`,
+		Subject: `dir1/dira/dir2/dir3/dira/dir4/dir5/dira/here.txt`,
+		Match:   true,
+	},
+	{
+		Pattern: `*/**/end.txt`,
+		Subject: `qwrty/doublestar/can/take/as/much/dirs/as/it/wants/end.txt`,
+		Match:   true,
+	},
+	{
+		Pattern: `**/a*/**/b*/**/done.txt`,
+		Subject: `adir/dir1/dir2/bdir/adir/dir3/dir4/done.txt`,
+		Match:   true,
+	},
 }
 
 func TestWildmatch(t *testing.T) {
