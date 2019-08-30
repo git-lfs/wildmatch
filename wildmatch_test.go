@@ -240,6 +240,16 @@ var Cases = []*Case{
 		Match:   false,
 	},
 	{
+		Pattern: `*.txt`,
+		Subject: `你好-世界.txt`,
+		Match:   true,
+	},
+	{
+		Pattern: `你好-世界.txt`,
+		Subject: `你好-世界.txt`,
+		Match:   true,
+	},
+	{
 		Pattern: `foo*`,
 		Subject: `foobar`,
 		Match:   true,

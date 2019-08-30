@@ -126,7 +126,7 @@ func slashEscape(p string) string {
 				i += 1
 			}
 		default:
-			pp += string(c)
+			pp += string([]byte{c})
 			i += 1
 		}
 	}
