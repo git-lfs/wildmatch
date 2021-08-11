@@ -202,7 +202,7 @@ var Cases = []*Case{
 	{
 		Pattern: `**/bar/*`,
 		Subject: `deep/foo/bar/baz/`,
-		Match:   false,
+		Match:   true,
 	},
 	{
 		Pattern: `**/bar/**`,
@@ -218,6 +218,26 @@ var Cases = []*Case{
 		Pattern: `**/bar/**`,
 		Subject: `deep/foo/bar/`,
 		Match:   true,
+	},
+	{
+		Pattern: `**/bar/**`,
+		Subject: `deep/foo/bar`,
+		Match:   false,
+	},
+	{
+		Pattern: `**/bar/**/*`,
+		Subject: `deep/foo/bar/`,
+		Match:   true,
+	},
+	{
+		Pattern: `**/bar/**/*`,
+		Subject: `deep/foo/bar`,
+		Match:   false,
+	},
+	{
+		Pattern: `**/bar/**/*`,
+		Subject: `deep/bar/bar`,
+		Match:   false,
 	},
 	{
 		Pattern: `*/bar/**`,
@@ -651,6 +671,11 @@ var Cases = []*Case{
 		Match:   false,
 	},
 	{
+		Pattern: `path/`,
+		Subject: `path/to/some/intermediaries/to/file.txt`,
+		Match:   false,
+	},
+	{
 		// GitAttribute-style matching directory.
 		// false becalse gitattribute never matches directories.
 		Pattern:   `anotherfile.txt/`,
@@ -689,6 +714,41 @@ var Cases = []*Case{
 	{
 		Pattern: `**/pdfkit.frameworks/pdfkit/**`,
 		Subject: `MyFolder/libs/pdfkit.frameworks/pdfkit`,
+		Match:   false,
+	},
+	{
+		Pattern:   `foo/`,
+		Subject:   `bar/baz/foo`,
+		MatchOpts: MatchOpts{IsDirectory: true},
+		Match:     true,
+	},
+	{
+		Pattern:   `foo/`,
+		Subject:   `foo`,
+		MatchOpts: MatchOpts{IsDirectory: true},
+		Match:     true,
+	},
+	{
+		Pattern:   `foo/`,
+		Subject:   `foo/`,
+		Match:     true,
+	},
+	{
+		Pattern: `path/`,
+		Subject: `path/to/some/intermediaries/to/file.txt`,
+		Opts:    []opt{Contents},
+		Match:   true,
+	},
+	{
+		Pattern: `to/`,
+		Subject: `path/to/some/intermediaries/to/file.txt`,
+		Opts:    []opt{Contents},
+		Match:   true,
+	},
+	{
+		Pattern: `nonexistent/`,
+		Subject: `path/to/some/intermediaries/to/file.txt`,
+		Opts:    []opt{Contents},
 		Match:   false,
 	},
 }

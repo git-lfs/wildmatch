@@ -34,6 +34,13 @@ var (
 		w.gitattributes = true
 	}
 
+	// Contents indicates that if a pattern matches a directory that is a
+	// parent of a path, then that path is included.  This is the behavior
+	// of patterns for .gitignore.
+	Contents opt = func(w *Wildmatch) {
+		w.contents = true
+	}
+
 	// SystemCase either folds or does not fold filepaths and patterns,
 	// according to whether or not the operating system on which Wildmatch
 	// runs supports case sensitive files or not.
@@ -66,6 +73,11 @@ type Wildmatch struct {
 	// should be used. The two main differences are that negative expressions are
 	// not allowed and directories are not matched.
 	gitattributes bool
+
+	// contents indicates that if a pattern matches a directory that is a
+	// parent of a path, then that path is included.  This is the behavior
+	// of patterns for .gitignore.
+	contents bool
 }
 
 type MatchOpts struct {
@@ -93,7 +105,7 @@ func NewWildmatch(p string, opts ...opt) *Wildmatch {
 	if len(parts) > 1 {
 		w.basename = false
 	}
-	w.ts = parseTokens(parts)
+	w.ts = w.parseTokens(parts)
 
 	return w
 }
@@ -141,7 +153,42 @@ func escapable(c byte) bool {
 
 // parseTokens parses a separated list of patterns into a sequence of
 // representative Tokens that will compose the pattern when applied in sequence.
-func parseTokens(dirs []string) []token {
+func (w *Wildmatch) parseTokens(dirs []string) []token {
+	if len(dirs) == 0 {
+		return make([]token, 0)
+	}
+
+	var finalComponents []token
+
+	// This is a pattern like "foo/" or "foo/bar/".
+	if !w.gitattributes && len(dirs) > 1 && dirs[len(dirs)-1] == "" {
+		if w.contents {
+			finalComponents = []token{&trailingComponents{}}
+		}
+		if len(dirs) == 2 {
+			// We don't have a slash in the middle, so this can go
+			// anywhere in the hierarchy.  If there had been a slash
+			// here, it would have been anchored at the root.
+			rest := w.parseTokensSimple(dirs)
+			tokens := append([]token{&unanchoredDirectory{
+				Until: rest[0],
+			}})
+			// If we're not matching all contents, then do include
+			// the empty component so we don't match
+			// non-directories.
+			if finalComponents == nil && len(rest) > 1 {
+				finalComponents = rest[1:]
+			}
+			tokens = append(tokens, finalComponents...)
+			return tokens
+		}
+	}
+	components := w.parseTokensSimple(dirs[0:])
+	components = append(components, finalComponents...)
+	return components
+}
+
+func (w *Wildmatch) parseTokensSimple(dirs []string) []token {
 	if len(dirs) == 0 {
 		return make([]token, 0)
 	}
@@ -151,10 +198,9 @@ func parseTokens(dirs []string) []token {
 		if len(dirs) == 1 {
 			return []token{&component{fns: []componentFn{substring("")}}}
 		}
-		return parseTokens(dirs[1:])
+		return w.parseTokensSimple(dirs[1:])
 	case "**":
-
-		rest := parseTokens(dirs[1:])
+		rest := w.parseTokensSimple(dirs[1:])
 		if len(rest) == 0 {
 			// If there are no remaining tokens, return a lone
 			// doubleStar token.
@@ -174,7 +220,7 @@ func parseTokens(dirs []string) []token {
 		// continue on.
 		return append([]token{&component{
 			fns: parseComponent(dirs[0]),
-		}}, parseTokens(dirs[1:])...)
+		}}, w.parseTokensSimple(dirs[1:])...)
 	}
 }
 
@@ -256,6 +302,11 @@ func (w *Wildmatch) consume(t string, opt MatchOpts) ([]string, bool) {
 			return dirs, false
 		}
 	}
+	// If this is a directory that we've otherwise matched and all we have
+	// left is an empty path component, then this is a match.
+	if isDir && len(dirs) == 1 && len(dirs[0]) == 0 {
+		return nil, true
+	}
 	return dirs, true
 }
 
@@ -331,6 +382,43 @@ func (d *doubleStar) String() string {
 		return "**"
 	}
 	return fmt.Sprintf("**/%s", d.Until.String())
+}
+
+// unanchoredDirectory is an implementation of the Token interface which
+// greedily matches one-or-more path components until a successor token.
+type unanchoredDirectory struct {
+	Until token
+}
+
+// Consume implements token.Consume as above.
+func (d *unanchoredDirectory) Consume(path []string, isDir bool) ([]string, bool) {
+	// This matches the same way as a doubleStar, so just use that
+	// implementation.
+	s := &doubleStar{Until: d.Until}
+	return s.Consume(path, isDir)
+}
+
+// String implements Component.String.
+func (d *unanchoredDirectory) String() string {
+	return fmt.Sprintf("%s/", d.Until.String())
+}
+
+// trailingComponents is an implementation of the Token interface which
+// greedily matches any trailing components, even if empty.
+type trailingComponents struct {
+}
+
+// Consume implements token.Consume as above.
+func (d *trailingComponents) Consume(path []string, isDir bool) ([]string, bool) {
+	// This matches the same way as a doubleStar, so just use that
+	// implementation.
+	s := &doubleStar{Until: nil}
+	return s.Consume(path, isDir)
+}
+
+// String implements Component.String.
+func (d *trailingComponents) String() string {
+	return ""
 }
 
 // componentFn is a functional type designed to match a single component of a
