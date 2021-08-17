@@ -729,9 +729,73 @@ var Cases = []*Case{
 		Match:     true,
 	},
 	{
-		Pattern:   `foo/`,
-		Subject:   `foo/`,
+		Pattern: `foo/`,
+		Subject: `foo/`,
+		Match:   true,
+	},
+	{
+		Pattern: `/foo/`,
+		Subject: `foo/`,
+		Match:   true,
+	},
+	{
+		Pattern: `/foo/`,
+		Subject: `foo/`,
+		Opts:    []opt{Contents},
+		Match:   true,
+	},
+	{
+		Pattern: `/foo/`,
+		Subject: `foo/`,
+		Opts:    []opt{Basename, Contents},
+		Match:   true,
+	},
+	{
+		Pattern: `/foo`,
+		Subject: `foo`,
+		Match:   true,
+	},
+	{
+		Pattern: `/foo/filename.txt`,
+		Subject: `foo/filename.txt`,
+		Match:   true,
+	},
+	{
+		Pattern: `/foo/filename.txt`,
+		Subject: `bar/foo/filename.txt`,
+		Match:   false,
+	},
+	{
+		Pattern: `/foo/*.txt`,
+		Subject: `foo/filename.txt`,
+		Match:   true,
+	},
+	{
+		Pattern: `/*.txt`,
+		Subject: `foo/filename.txt`,
+		Match:   false,
+	},
+	{
+		Pattern: `/foo/*.txt`,
+		Subject: `bar/foo/filename.txt`,
+		Match:   false,
+	},
+	{
+		Pattern:   `/foo/`,
+		Subject:   `foo`,
+		MatchOpts: MatchOpts{IsDirectory: true},
 		Match:     true,
+	},
+	{
+		Pattern: `/foo/`,
+		Subject: `foo/filename.txt`,
+		Opts:    []opt{Contents},
+		Match:   true,
+	},
+	{
+		Pattern: `/foo/**`,
+		Subject: `foo/filename.txt`,
+		Match:   true,
 	},
 	{
 		Pattern: `path/`,

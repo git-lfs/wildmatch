@@ -159,11 +159,13 @@ func (w *Wildmatch) parseTokens(dirs []string) []token {
 	}
 
 	var finalComponents []token
+	endItem := len(dirs)
 
 	// This is a pattern like "foo/" or "foo/bar/".
 	if !w.gitattributes && len(dirs) > 1 && dirs[len(dirs)-1] == "" {
 		if w.contents {
 			finalComponents = []token{&trailingComponents{}}
+			endItem = len(dirs) - 1
 		}
 		if len(dirs) == 2 {
 			// We don't have a slash in the middle, so this can go
@@ -183,7 +185,7 @@ func (w *Wildmatch) parseTokens(dirs []string) []token {
 			return tokens
 		}
 	}
-	components := w.parseTokensSimple(dirs[0:])
+	components := w.parseTokensSimple(dirs[0:endItem])
 	components = append(components, finalComponents...)
 	return components
 }
