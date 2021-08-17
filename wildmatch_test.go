@@ -739,6 +739,12 @@ var Cases = []*Case{
 		Match:   true,
 	},
 	{
+		Pattern: `big/b`,
+		Subject: `big/b/b1`,
+		Opts:    []opt{Contents},
+		Match:   true,
+	},
+	{
 		Pattern: `/foo/`,
 		Subject: `foo/`,
 		Opts:    []opt{Contents},

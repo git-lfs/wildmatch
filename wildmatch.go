@@ -162,12 +162,15 @@ func (w *Wildmatch) parseTokens(dirs []string) []token {
 	endItem := len(dirs)
 
 	// This is a pattern like "foo/" or "foo/bar/".
-	if !w.gitattributes && len(dirs) > 1 && dirs[len(dirs)-1] == "" {
+	if !w.gitattributes {
+		trailingIsEmpty := len(dirs) > 1 && dirs[len(dirs)-1] == ""
 		if w.contents {
 			finalComponents = []token{&trailingComponents{}}
-			endItem = len(dirs) - 1
+			if trailingIsEmpty {
+				endItem = len(dirs) - 1
+			}
 		}
-		if len(dirs) == 2 {
+		if len(dirs) == 2 && trailingIsEmpty {
 			// We don't have a slash in the middle, so this can go
 			// anywhere in the hierarchy.  If there had been a slash
 			// here, it would have been anchored at the root.
