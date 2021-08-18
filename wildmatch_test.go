@@ -642,6 +642,12 @@ var Cases = []*Case{
 		Match:   true,
 	},
 	{
+		Pattern: `file.txt`,
+		Subject: `file.txt`,
+		Opts:    []opt{Basename, Contents},
+		Match:   true,
+	},
+	{
 		Pattern: `*.txt`,
 		Subject: `path/to/file.txt`,
 		Opts:    []opt{Basename},
@@ -740,6 +746,18 @@ var Cases = []*Case{
 	},
 	{
 		Pattern: `big/b`,
+		Subject: `big/b/b1`,
+		Opts:    []opt{Contents},
+		Match:   true,
+	},
+	{
+		Pattern: `big`,
+		Subject: `big/b/b1`,
+		Opts:    []opt{Contents},
+		Match:   true,
+	},
+	{
+		Pattern: `b`,
 		Subject: `big/b/b1`,
 		Opts:    []opt{Contents},
 		Match:   true,
