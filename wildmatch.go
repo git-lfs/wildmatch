@@ -160,12 +160,22 @@ func (w *Wildmatch) parseTokens(dirs []string) []token {
 
 	var finalComponents []token
 
-	// This is a pattern like "foo/" or "foo/bar/".
-	if !w.gitattributes && len(dirs) > 1 && dirs[len(dirs)-1] == "" {
+	if !w.gitattributes {
+		trailingIsEmpty := len(dirs) > 1 && dirs[len(dirs)-1] == ""
+		numNonEmptyDirs := len(dirs)
+		if trailingIsEmpty {
+			numNonEmptyDirs -= 1
+		}
 		if w.contents {
 			finalComponents = []token{&trailingComponents{}}
+			if trailingIsEmpty {
+				// Strip off the trailing empty string.
+				dirs = dirs[:numNonEmptyDirs]
+			}
 		}
-		if len(dirs) == 2 {
+		// If we have one component, ignoring trailing empty
+		// components and we know that a directory is permissible…
+		if numNonEmptyDirs == 1 && (trailingIsEmpty || w.contents) {
 			// We don't have a slash in the middle, so this can go
 			// anywhere in the hierarchy.  If there had been a slash
 			// here, it would have been anchored at the root.
@@ -179,13 +189,11 @@ func (w *Wildmatch) parseTokens(dirs []string) []token {
 			if finalComponents == nil && len(rest) > 1 {
 				finalComponents = rest[1:]
 			}
-			tokens = append(tokens, finalComponents...)
-			return tokens
+			return append(tokens, finalComponents...)
 		}
 	}
-	components := w.parseTokensSimple(dirs[0:])
-	components = append(components, finalComponents...)
-	return components
+	components := w.parseTokensSimple(dirs)
+	return append(components, finalComponents...)
 }
 
 func (w *Wildmatch) parseTokensSimple(dirs []string) []token {
@@ -349,13 +357,14 @@ type token interface {
 // doubleStar is an implementation of the Token interface which greedily matches
 // one-or-more path components until a successor token.
 type doubleStar struct {
-	Until token
+	Until     token
+	EmptyPath bool
 }
 
 // Consume implements token.Consume as above.
 func (d *doubleStar) Consume(path []string, isDir bool) ([]string, bool) {
 	if len(path) == 0 {
-		return path, false
+		return path, d.EmptyPath
 	}
 
 	// If there are no remaining tokens to match, allow matching the entire
@@ -412,7 +421,7 @@ type trailingComponents struct {
 func (d *trailingComponents) Consume(path []string, isDir bool) ([]string, bool) {
 	// This matches the same way as a doubleStar, so just use that
 	// implementation.
-	s := &doubleStar{Until: nil}
+	s := &doubleStar{Until: nil, EmptyPath: true}
 	return s.Consume(path, isDir)
 }
 
