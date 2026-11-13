@@ -839,6 +839,85 @@ var Cases = []*Case{
 		Opts:    []opt{Contents},
 		Match:   false,
 	},
+	// A "-" is a range marker only when it sits between two
+	// characters of a character group.  Otherwise it is a literal
+	// "-", as in git, and a group which is never terminated by a
+	// "]" matches nothing at all.
+	{
+		Pattern: `[a-]`,
+		Subject: `a`,
+		Match:   true,
+	},
+	{
+		Pattern: `[a-]`,
+		Subject: `-`,
+		Match:   true,
+	},
+	{
+		Pattern: `[a-]`,
+		Subject: `b`,
+		Match:   false,
+	},
+	{
+		Pattern: `[a-]`,
+		Subject: `]`,
+		Match:   false,
+	},
+	{
+		Pattern: `[-a]`,
+		Subject: `-`,
+		Match:   true,
+	},
+	{
+		Pattern: `[-a]`,
+		Subject: `]`,
+		Match:   false,
+	},
+	{
+		Pattern: `[a-]x`,
+		Subject: `ax`,
+		Match:   true,
+	},
+	{
+		Pattern: `[a-]x`,
+		Subject: `-x`,
+		Match:   true,
+	},
+	{
+		Pattern: `[!a-]`,
+		Subject: `-`,
+		Match:   false,
+	},
+	{
+		Pattern: `[!a-]`,
+		Subject: `b`,
+		Match:   true,
+	},
+	{
+		Pattern: `[a-c-e]`,
+		Subject: `b`,
+		Match:   true,
+	},
+	{
+		Pattern: `[a-c-e]`,
+		Subject: `-`,
+		Match:   true,
+	},
+	{
+		Pattern: `[a-c-e]`,
+		Subject: `d`,
+		Match:   false,
+	},
+	{
+		Pattern: `[a-`,
+		Subject: `a`,
+		Match:   false,
+	},
+	{
+		Pattern: `[[:alpha:]-`,
+		Subject: `a`,
+		Match:   false,
+	},
 }
 
 func TestWildmatch(t *testing.T) {

@@ -506,6 +506,8 @@ func parseComponent(s string) []componentFn {
 			run string
 			// neg is whether we have seen a negation marker.
 			neg bool
+			// closed is whether the group was terminated by a ']'.
+			closed bool
 		)
 
 		for i < len(s) {
@@ -547,47 +549,54 @@ func parseComponent(s string) []componentFn {
 				// Advance to the first index beyond the closing
 				// ":]".
 				i = i + close + 2
-			} else if s[i] == '-' {
-				if i < len(s) {
-					// If there is a range marker at the
-					// non-final position, construct a range
-					// and an optional "any" match:
-					var start, end byte
-					if len(run) > 0 {
-						// If there is at least one
-						// character in the run, use it
-						// as the starting point of the
-						// range, and remove it from the
-						// run.
-						start = run[len(run)-1]
-						run = run[:len(run)-1]
+			} else if s[i] == '-' && len(run) > 0 && i+1 < len(s) && s[i+1] != ']' {
+				// If there is a range marker between two
+				// characters of the group, construct a range
+				// and an optional "any" match:
+				var start, end byte
+				// If there is at least one character in
+				// the run, use it as the starting point of
+				// the range, and remove it from the run.
+				start = run[len(run)-1]
+				run = run[:len(run)-1]
+
+				// The character which ends the range may
+				// itself be escaped, as in `[A-\]`, in
+				// which case the escape sequence is
+				// consumed along with the range.
+				endIdx := i + 1
+				if s[endIdx] == '\\' {
+					if endIdx+1 >= len(s) {
+						panic("wildmatch: unclosed escape")
 					}
-					end = s[i+1]
-
-					if len(run) > 0 {
-						// If there is still information
-						// in the run, construct a rune
-						// function matching any
-						// characters in the run.
-						cfn := anyRune(run)
-
-						include, exclude = appendMaybe(!neg, include, exclude, cfn)
-						run = ""
-					}
-
-					// Finally, construct the rune range and
-					// add it appropriately.
-					bfn := between(rune(start), rune(end))
-					include, exclude = appendMaybe(!neg,
-						include, exclude, bfn)
-
-					i = i + 2
-				} else {
-					// If this is in the final position, add
-					// it to the run and exit the loop.
-					run = run + "-"
-					i = i + 2
+					endIdx = endIdx + 1
 				}
+				end = s[endIdx]
+
+				if len(run) > 0 {
+					// If there is still information
+					// in the run, construct a rune
+					// function matching any
+					// characters in the run.
+					cfn := anyRune(run)
+
+					include, exclude = appendMaybe(!neg, include, exclude, cfn)
+					run = ""
+				}
+
+				// Finally, construct the rune range and
+				// add it appropriately.
+				bfn := between(rune(start), rune(end))
+				include, exclude = appendMaybe(!neg,
+					include, exclude, bfn)
+
+				i = endIdx + 1
+			} else if s[i] == '-' {
+				// A range marker without a character on both
+				// sides is a literal "-", as in "[-a]",
+				// "[a-]", and "[a-c-e]".
+				run = run + "-"
+				i = i + 1
 			} else if s[i] == '\\' {
 				// If we encounter an escape sequence in the
 				// group, check its bounds and add it to the
@@ -600,6 +609,7 @@ func parseComponent(s string) []componentFn {
 			} else if s[i] == ']' {
 				// If we encounter a closing ']', then stop
 				// parsing the group.
+				closed = true
 				break
 			} else {
 				// Otherwise, add the character to the run and
@@ -607,6 +617,12 @@ func parseComponent(s string) []componentFn {
 				run = run + string(s[i])
 				i = i + 1
 			}
+		}
+
+		if !closed {
+			// An unterminated character group matches
+			// nothing, as it does in git.
+			return nil
 		}
 
 		if len(run) > 0 {
